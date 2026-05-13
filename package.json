@@ -1,0 +1,17 @@
+{
+  "name": "playwright-demo-recorder",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Automated demo video recordings with Playwright and Claude Code",
+  "scripts": {
+    "demo:run": "node demos/scripts/run-demos.mjs",
+    "demo:run:all": "npx playwright test --config playwright.demos.config.ts",
+    "app:serve": "npx serve app -l 3000"
+  },
+  "devDependencies": {
+    "@inquirer/prompts": "^7.10.1",
+    "@playwright/test": "^1.60.0",
+    "serve": "^14.2.6"
+  }
+}
