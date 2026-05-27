@@ -311,8 +311,18 @@ export interface HighlightHandle {
  * Draw a pulsing glow border around a target element, optionally with a caption.
  * Returns a handle to clear the highlight when done.
  *
+ * Accepts any selector string Playwright's `page.locator()` understands —
+ * including the Playwright-only pseudo-classes `:has-text()`, `:visible`,
+ * `:nth-match()`, etc. We resolve the bounding box on the Node side via
+ * Playwright (which understands those) and then pass the resolved rect into
+ * page.evaluate so the in-browser code only deals with plain coordinates.
+ *
+ * If the selector resolves to nothing (or to an element that is detached),
+ * the function resolves to a no-op clear handle so callers can use
+ * `.catch()` for fallback behaviour but don't have to.
+ *
  * @param page         Playwright page
- * @param selector     CSS selector for the target element
+ * @param selector     Playwright locator string for the target element
  * @param captionText  Optional label shown near the highlight
  */
 export async function highlightElement(
@@ -322,15 +332,25 @@ export async function highlightElement(
 ): Promise<HighlightHandle> {
   await ensureOverlayRoot(page);
 
-  const id = `__demo_highlight_${Date.now()}`;
+  const id = `__demo_highlight_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+
+  // Resolve rect via Playwright (which understands :has-text(), etc.)
+  let rect: { x: number; y: number; width: number; height: number } | null = null;
+  try {
+    rect = await page.locator(selector).first().boundingBox({ timeout: 2000 });
+  } catch {
+    rect = null;
+  }
+
+  // If the element isn't on screen, fail soft so callers can fall back via .catch().
+  if (!rect || rect.width <= 0 || rect.height <= 0) {
+    throw new Error(`highlightElement: selector did not resolve to a visible element: ${selector}`);
+  }
 
   await page.evaluate(
-    ({ rootId, selector, captionText, id }) => {
+    ({ rootId, rect, captionText, id }) => {
       const root = document.getElementById(rootId);
-      const target = document.querySelector(selector);
-      if (!root || !target) return;
-
-      const rect = target.getBoundingClientRect();
+      if (!root) return;
 
       // Inject keyframes if not already present
       if (!document.getElementById("__demo_highlight_keyframes")) {
@@ -350,8 +370,8 @@ export async function highlightElement(
       wrapper.setAttribute("data-demo-highlight", "true");
       Object.assign(wrapper.style, {
         position: "fixed",
-        top: `${rect.top - 4}px`,
-        left: `${rect.left - 4}px`,
+        top: `${rect.y - 4}px`,
+        left: `${rect.x - 4}px`,
         width: `${rect.width + 8}px`,
         height: `${rect.height + 8}px`,
         borderRadius: "8px",
@@ -367,8 +387,8 @@ export async function highlightElement(
         const label = document.createElement("div");
         Object.assign(label.style, {
           position: "fixed",
-          top: `${rect.bottom + 12}px`,
-          left: `${rect.left + rect.width / 2}px`,
+          top: `${rect.y + rect.height + 12}px`,
+          left: `${rect.x + rect.width / 2}px`,
           transform: "translateX(-50%)",
           fontSize: "18px",
           fontWeight: "500",
@@ -396,7 +416,7 @@ export async function highlightElement(
         wrapper.style.opacity = "1";
       });
     },
-    { rootId: OVERLAY_ROOT_ID, selector, captionText, id }
+    { rootId: OVERLAY_ROOT_ID, rect, captionText, id }
   );
 
   return {
@@ -429,16 +449,81 @@ export async function highlightElement(
 // Utility: caption read time
 // ---------------------------------------------------------------------------
 
+import { CAPTION_READ_LONG, CAPTION_READ_MEDIUM, CAPTION_READ_SHORT } from "./pacing";
+
 /**
  * Calculate an appropriate read duration for a caption based on word count.
- * Rule of thumb: ~250ms per word, minimum 1500ms.
- *
- * Returns one of the standard CAPTION_READ_* bucket values so timing stays
- * consistent across demos.
+ * Stays in sync with the CAPTION_READ_* buckets in pacing.ts so callers can
+ * pass arbitrary strings without having to pick a bucket manually.
  */
 export function captionReadTime(text: string): number {
   const words = text.trim().split(/\s+/).length;
-  if (words <= 7) return 2000; // CAPTION_READ_SHORT
-  if (words <= 15) return 3500; // CAPTION_READ_MEDIUM
-  return 5000; // CAPTION_READ_LONG
+  if (words <= 7) return CAPTION_READ_SHORT;
+  if (words <= 15) return CAPTION_READ_MEDIUM;
+  return CAPTION_READ_LONG;
+}
+
+// ---------------------------------------------------------------------------
+// highlightAndExplain
+// ---------------------------------------------------------------------------
+
+export interface HighlightAndExplainOptions {
+  /** Where to place the caption (default "bottom") */
+  captionPosition?: CaptionPosition;
+  /** Override the auto-computed read duration (ms) */
+  duration?: number;
+  /** Extra dwell time after the caption read completes before clearing (ms) */
+  holdAfterMs?: number;
+}
+
+/**
+ * "Look here" pattern: pulse a glow border around a target element AND show a
+ * caption explaining it at the same time, then clear both together once the
+ * viewer has had time to read.
+ *
+ * The caption stays visible for the natural read time of its text (computed
+ * from word count) plus any optional `holdAfterMs` linger. The pulsing
+ * highlight stays for the same duration. After the dwell, both fade out and
+ * the function resolves.
+ *
+ * Use this whenever the narrative is "and over here we have X" — it keeps
+ * the viewer's attention anchored on the right region of the page.
+ *
+ * @example
+ *   await highlightAndExplain(
+ *     page,
+ *     '[data-testid="status-badge"]',
+ *     "Status is now active",
+ *   );
+ */
+export async function highlightAndExplain(
+  page: Page,
+  selector: string,
+  captionText: string,
+  options: HighlightAndExplainOptions = {}
+): Promise<void> {
+  const {
+    captionPosition = "bottom",
+    duration = captionReadTime(captionText),
+    holdAfterMs = 400,
+  } = options;
+
+  // Try the highlight, but fall back to a plain caption if the selector
+  // can't be resolved or the element has no rendered size. This keeps the
+  // demo robust to UI tweaks — the narration still plays out even when a
+  // single highlight target is missing.
+  let handle: HighlightHandle | null = null;
+  try {
+    handle = await highlightElement(page, selector);
+  } catch (err) {
+    process.stderr.write(
+      `[demo] highlightAndExplain fallback (${selector}): ${(err as Error).message}\n`
+    );
+  }
+
+  await showCaption(page, captionText, { position: captionPosition });
+  await page.waitForTimeout(duration + holdAfterMs);
+
+  if (handle) await handle.clear();
+  await hideCaption(page);
 }

@@ -1,10 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import { type BrowserContext, chromium, type Page } from "@playwright/test";
 import { injectCursor } from "./cursor";
 
-const DEMOS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+/** BrowserContext with demo metadata stashed for closeDemoRecorder. */
+interface DemoContext extends BrowserContext {
+  __demoName?: string;
+  __demoPage?: Page;
+}
+
+const DEMOS_ROOT = path.resolve(import.meta.dirname, "..");
 const BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000";
 
 interface RecorderOptions {
@@ -52,8 +57,8 @@ export async function createDemoRecorder(options: RecorderOptions): Promise<Reco
   await page.addInitScript(injectCursor);
 
   // Stash the name on the context for closeDemoRecorder
-  (context as any).__demoName = name;
-  (context as any).__demoPage = page;
+  (context as DemoContext).__demoName = name;
+  (context as DemoContext).__demoPage = page;
 
   return { context, page };
 }
@@ -64,8 +69,8 @@ export async function createDemoRecorder(options: RecorderOptions): Promise<Reco
  * If a file with that name already exists, appends `(1)`, `(2)`, etc.
  */
 export async function closeDemoRecorder(context: BrowserContext): Promise<void> {
-  const name: string = (context as any).__demoName ?? "unnamed";
-  const page: Page | undefined = (context as any).__demoPage;
+  const name: string = (context as DemoContext).__demoName ?? "unnamed";
+  const page: Page | undefined = (context as DemoContext).__demoPage;
 
   // Get the video path before closing (only available while page is open)
   const videoPath = page ? await page.video()?.path() : undefined;

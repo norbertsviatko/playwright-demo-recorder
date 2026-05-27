@@ -14,7 +14,8 @@ export default defineConfig({
   // No retries for demos — we want a clean single take
   retries: 0,
 
-  // Long timeout — demos include deliberate pauses and visible typing
+  // Long timeout — demos include deliberate pauses and visible typing.
+  // Increase for longer demos (e.g. 2_700_000 for ~45 min full-platform demos).
   timeout: 300_000,
 
   reporter: [["list"]],

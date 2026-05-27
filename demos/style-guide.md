@@ -22,9 +22,9 @@ Every generated script MUST start with a comment block linking to its source sce
 
 ## Pausing
 
-- `PAUSE_SHORT` (400ms) — after clicks, small UI transitions
-- `PAUSE_MEDIUM` (1000ms) — after navigation, form submissions, page loads
-- `PAUSE_LONG` (2000ms) — "let the viewer read this" moments (dashboard, results, key UI states)
+- `PAUSE_SHORT` (250ms) — after clicks, small UI transitions
+- `PAUSE_MEDIUM` (600ms) — after navigation, form submissions, page loads
+- `PAUSE_LONG` (1200ms) — "let the viewer read this" moments (dashboard, results, key UI states)
 - Always `await sleep(PAUSE_*)` — never bare `setTimeout`
 
 ## Mouse Movement & Cursor
@@ -133,12 +133,12 @@ Scenario `.md` files can include blockquote directives that control on-screen te
 
 | Constant | Duration | Word count |
 |----------|----------|------------|
-| `CAPTION_READ_SHORT` | 2000ms | <=7 words |
-| `CAPTION_READ_MEDIUM` | 3500ms | 8-15 words |
-| `CAPTION_READ_LONG` | 5000ms | >15 words |
-| `TITLE_CARD_DURATION` | 3000ms | (default for title cards) |
+| `CAPTION_READ_SHORT` | 2200ms | ≤7 words |
+| `CAPTION_READ_MEDIUM` | 3800ms | 8-15 words |
+| `CAPTION_READ_LONG` | 5500ms | >15 words |
+| `TITLE_CARD_DURATION` | 2400ms | (default for title cards) |
 
-Rule of thumb: ~250ms per word of reading time, 1500ms minimum. Use `captionReadTime(text)` from `../helpers/captions` to auto-select the right bucket.
+Rule of thumb: ~350ms per word of reading time, 2200ms minimum. Use `captionReadTime(text)` from `../helpers/captions` to auto-select the right bucket.
 
 ### Generation Pattern
 
@@ -182,6 +182,11 @@ await highlight.clear();
 await sleep(<ms>);
 ```
 
-Pick the read duration size based on word count: <=7 words `CAPTION_READ_SHORT`, 8-15 words `CAPTION_READ_MEDIUM`, >15 words `CAPTION_READ_LONG`. Or use `captionReadTime(text)` directly.
+Pick the read duration size based on word count: ≤7 words `CAPTION_READ_SHORT`, 8-15 words `CAPTION_READ_MEDIUM`, >15 words `CAPTION_READ_LONG`. Or use `captionReadTime(text)` directly.
+
+**`> HIGHLIGHT_EXPLAIN: <selector> | <caption>`** — emit (combines highlight + caption in one call):
+```ts
+await highlightAndExplain(page, "<selector>", "<caption>");
+```
 
 Word the captions concisely. If a scenario author writes a long caption, keep it as-is — don't rewrite their narrative voice. But flag in a comment if a caption exceeds 20 words (`// NOTE: long caption — consider shortening`).

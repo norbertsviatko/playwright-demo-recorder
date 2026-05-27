@@ -5,8 +5,14 @@
  */
 
 import { test } from "@playwright/test";
-import { showCaption, hideCaption, showTitleCard, highlightElement } from "../helpers/captions";
-import { clickWithCursor, moveTo } from "../helpers/cursor";
+import {
+  showCaption,
+  hideCaption,
+  showTitleCard,
+  highlightAndExplain,
+  captionReadTime,
+} from "../helpers/captions";
+import { clickWithCursor, moveTo, smoothScroll } from "../helpers/cursor";
 import {
   PAUSE_SHORT,
   PAUSE_MEDIUM,
@@ -81,19 +87,32 @@ test("todo app demo", async () => {
   await sleep(PAUSE_LONG);
   await hideCaption(page);
 
-  // Step: Highlight the counter
-  const highlight = await highlightElement(page, '[data-testid="counter"]', "2 remaining");
-  await sleep(PAUSE_LONG);
-  await highlight.clear();
+  // Step: Highlight the counter — uses highlightAndExplain for combined glow + caption
+  await highlightAndExplain(
+    page,
+    '[data-testid="counter"]',
+    "2 items remaining after completing one",
+  );
 
   // Step: Delete "Buy groceries"
   await showCaption(page, "Now let\u2019s remove the completed task");
-  await sleep(CAPTION_READ_SHORT);
+  await sleep(captionReadTime("Now let\u2019s remove the completed task"));
 
   const firstDeleteButton = page.locator('[data-testid="todo-delete"]').first();
   await clickWithCursor(page, firstDeleteButton);
   await hideCaption(page);
   await sleep(PAUSE_MEDIUM);
+
+  // Step: Highlight the updated list
+  await highlightAndExplain(
+    page,
+    '[data-testid="todo-list"]',
+    "Only two active tasks remain",
+  );
+
+  // Step: Smooth scroll to show the counter area
+  await smoothScroll(page, 120);
+  await sleep(PAUSE_SHORT);
 
   // Step: Final pause
   await showCaption(page, "Clean and simple!");

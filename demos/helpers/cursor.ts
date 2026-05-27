@@ -1,3 +1,10 @@
+/** Window extended with demo cursor helpers injected by `injectCursor`. */
+interface DemoCursorWindow extends Window {
+  __moveCursor?: (x: number, y: number) => void;
+  __clickRipple?: (x: number, y: number) => void;
+  __getCursorPos?: () => { x: number; y: number };
+}
+
 /**
  * Injects a visible DOM-based cursor into the page.
  * Works in both headed and headless mode since it's pure DOM/CSS.
@@ -84,7 +91,7 @@ export function injectCursor() {
     );
 
     // Explicit positioning API — called from test code via page.evaluate
-    (window as any).__moveCursor = (x: number, y: number) => {
+    (window as unknown as DemoCursorWindow).__moveCursor = (x: number, y: number) => {
       lastX = x;
       lastY = y;
       cursor.style.left = `${x}px`;
@@ -92,7 +99,7 @@ export function injectCursor() {
       cursor.style.opacity = "1";
     };
 
-    (window as any).__clickRipple = (x: number, y: number) => {
+    (window as unknown as DemoCursorWindow).__clickRipple = (x: number, y: number) => {
       const ripple = document.createElement("div");
       ripple.className = "__demo-click-ripple";
       ripple.style.left = `${x}px`;
@@ -101,7 +108,7 @@ export function injectCursor() {
       ripple.addEventListener("animationend", () => ripple.remove());
     };
 
-    (window as any).__getCursorPos = () => ({ x: lastX, y: lastY });
+    (window as unknown as DemoCursorWindow).__getCursorPos = () => ({ x: lastX, y: lastY });
   }
 
   // addInitScript runs before DOM is ready — defer until body exists
@@ -120,7 +127,7 @@ type Page = import("@playwright/test").Page;
 type Locator = import("@playwright/test").Locator;
 
 /** Dwell time: cursor rests on target before clicking (ms) */
-const CLICK_DWELL = 350;
+const CLICK_DWELL = 150;
 
 /**
  * Move the visible cursor to a locator's center, with smooth Playwright mouse movement.
@@ -147,7 +154,7 @@ export async function moveTo(page: Page, locator: Locator) {
     await locator.evaluate((el) => {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
     });
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(300);
   }
 
   const box = await locator.boundingBox();
@@ -160,18 +167,18 @@ export async function moveTo(page: Page, locator: Locator) {
     // After scroll, place cursor directly at target (no travel animation from old pos)
     await page.evaluate(
       ({ px, py }) => {
-        const fn = (window as any).__moveCursor;
+        const fn = (window as unknown as DemoCursorWindow).__moveCursor;
         if (fn) fn(px, py);
       },
       { px: x, py: y }
     );
     await page.mouse.move(x, y);
   } else {
-    // Normal smooth cursor travel
-    await page.mouse.move(x, y, { steps: 15 });
+    // Normal smooth cursor travel — 8 steps for natural but quick movement
+    await page.mouse.move(x, y, { steps: 8 });
     await page.evaluate(
       ({ px, py }) => {
-        const fn = (window as any).__moveCursor;
+        const fn = (window as unknown as DemoCursorWindow).__moveCursor;
         if (fn) fn(px, py);
       },
       { px: x, py: y }
@@ -192,7 +199,7 @@ export async function clickWithCursor(page: Page, locator: Locator) {
   if (box) {
     await page.evaluate(
       ({ px, py }) => {
-        const fn = (window as any).__clickRipple;
+        const fn = (window as unknown as DemoCursorWindow).__clickRipple;
         if (fn) fn(px, py);
       },
       { px: box.x + box.width / 2, py: box.y + box.height / 2 }
@@ -209,14 +216,14 @@ export async function clickWithCursor(page: Page, locator: Locator) {
  * wheel events — giving the appearance of a natural scroll gesture.
  *
  * @param deltaY  Total pixels to scroll (positive = down, negative = up)
- * @param durationMs  How long the scroll animation takes (default 800ms)
+ * @param durationMs  How long the scroll animation takes (default 400ms)
  */
-export async function smoothScroll(page: Page, deltaY: number, durationMs = 800) {
+export async function smoothScroll(page: Page, deltaY: number, durationMs = 400) {
   const viewport = page.viewportSize() ?? { width: 1920, height: 1080 };
 
   // Get current cursor position, or default to center
   const startPos: { x: number; y: number } = (await page.evaluate(() => {
-    const fn = (window as any).__getCursorPos;
+    const fn = (window as unknown as DemoCursorWindow).__getCursorPos;
     return fn ? fn() : null;
   })) ?? { x: viewport.width / 2, y: viewport.height / 2 };
 
@@ -237,7 +244,7 @@ export async function smoothScroll(page: Page, deltaY: number, durationMs = 800)
     const cy = startPos.y + (endY - startPos.y) * ease;
     await page.evaluate(
       ({ px, py }) => {
-        const fn = (window as any).__moveCursor;
+        const fn = (window as unknown as DemoCursorWindow).__moveCursor;
         if (fn) fn(px, py);
       },
       { px: startPos.x, py: cy }

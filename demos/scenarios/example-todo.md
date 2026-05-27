@@ -36,7 +36,7 @@ A short demo showing basic todo list interactions: adding items, completing them
 
 > CAPTION_CLEAR
 
-> HIGHLIGHT: [data-testid="counter"] | 2 remaining
+> HIGHLIGHT_EXPLAIN: [data-testid="counter"] | 2 items remaining after completing one
 
 14. Pause on the counter
 
@@ -44,8 +44,10 @@ A short demo showing basic todo list interactions: adding items, completing them
 
 15. Click "Delete" on "Buy groceries"
 
-> PAUSE: 1000
+> HIGHLIGHT_EXPLAIN: [data-testid="todo-list"] | Only two active tasks remain
+
+16. Scroll down slightly to show the updated counter
 
 > CAPTION: Clean and simple!
 
-16. Final pause on the remaining tasks
+17. Final pause on the remaining tasks

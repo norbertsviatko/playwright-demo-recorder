@@ -99,14 +99,14 @@ All timing is in `helpers/pacing.ts`:
 
 | Constant | Default | Use |
 |----------|---------|-----|
-| `PAUSE_SHORT` | 400ms | After clicks, small transitions |
-| `PAUSE_MEDIUM` | 1000ms | After navigation, page loads |
-| `PAUSE_LONG` | 2000ms | "Read this" moments |
-| `TYPING_DELAY` | 80ms | Per-character typing speed |
-| `CAPTION_READ_SHORT` | 2000ms | Caption <=7 words |
-| `CAPTION_READ_MEDIUM` | 3500ms | Caption 8-15 words |
-| `CAPTION_READ_LONG` | 5000ms | Caption >15 words |
-| `TITLE_CARD_DURATION` | 3000ms | Full-screen title cards |
+| `PAUSE_SHORT` | 250ms | After clicks, small transitions |
+| `PAUSE_MEDIUM` | 600ms | After navigation, page loads |
+| `PAUSE_LONG` | 1200ms | "Read this" moments |
+| `TYPING_DELAY` | 50ms | Per-character typing speed |
+| `CAPTION_READ_SHORT` | 2200ms | Caption ≤7 words |
+| `CAPTION_READ_MEDIUM` | 3800ms | Caption 8-15 words |
+| `CAPTION_READ_LONG` | 5500ms | Caption >15 words |
+| `TITLE_CARD_DURATION` | 2400ms | Full-screen title cards |
 
 Change these to speed up or slow down all demos globally.
 
